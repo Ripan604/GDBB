@@ -1,0 +1,4 @@
+
+> @gdbb/web@0.1.0 typecheck D:\DAA_Project_Final\apps\web
+> tsc -p tsconfig.typecheck.json --noEmit
+

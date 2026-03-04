@@ -1,0 +1,4 @@
+
+> @gdbb/ui@0.1.0 typecheck D:\DAA_Project_Final\packages\ui
+> tsc -p tsconfig.json --noEmit
+

@@ -1,0 +1,4 @@
+
+> @gdbb/worker@0.1.0 typecheck D:\DAA_Project_Final\apps\worker
+> tsc -p tsconfig.json --noEmit
+

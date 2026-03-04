@@ -1,0 +1,62 @@
+
+> @gdbb/web@0.1.0 build D:\DAA_Project_Final\apps\web
+> next build
+
+  ▲ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/21) ...
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+   Generating static pages (5/21) 
+   Generating static pages (10/21) 
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+   Generating static pages (15/21) 
+ ✓ Generating static pages (21/21)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    2.14 kB         335 kB
+├ ○ /_not-found                          163 B          87.5 kB
+├ ○ /about                               163 B          87.5 kB
+├ ƒ /api/benchmarks/all                  0 B                0 B
+├ ƒ /api/chat                            0 B                0 B
+├ ƒ /api/gdbb/queue                      0 B                0 B
+├ ƒ /api/gdbb/sigma/[jobId]              0 B                0 B
+├ ƒ /api/gdbb/solve                      0 B                0 B
+├ ƒ /api/leaderboard/submit              0 B                0 B
+├ ○ /benchmarks                          21 kB           108 kB
+├ ○ /chat                                951 B          88.3 kB
+├ ○ /compare                             163 B          87.5 kB
+├ ○ /demo/portfolio                      163 B          87.5 kB
+├ ○ /demo/routing                        163 B          87.5 kB
+├ ○ /demo/scheduling                     163 B          87.5 kB
+├ ○ /demo/vrp                            3.38 kB         327 kB
+├ ○ /explore                             1.71 kB         326 kB
+├ ○ /paper                               163 B          87.5 kB
+├ ○ /patents                             163 B          87.5 kB
+└ ○ /theory                              1.41 kB         325 kB
++ First Load JS shared by all            87.3 kB
+  ├ chunks/3c186013-156724b4b1c08aed.js  53.6 kB
+  ├ chunks/612-d50b4412ee795b1b.js       31.7 kB
+  └ other shared chunks (total)          1.96 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

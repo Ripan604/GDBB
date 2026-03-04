@@ -1,0 +1,31 @@
+export const GDBB_STATS = {
+  avg_optimality_gap: '0.24%',
+  nodes_pruned: '91.7%',
+  speedup_vs_cplex: '47-83%',
+  speedup_vs_metaheuristics: '12-31%',
+  benchmark_instances: 5400,
+  benchmark_classes: 12,
+  n_range: '50 to 10,000',
+  by_domain: {
+    CVRP_small: { gap: '0.05%', vs_cplex_gap: '0.0%' },
+    CVRP_large: { gap: '0.31%', vs_cplex_gap: '12.3%' },
+    MRORS: { gap: '0.18%', clinical: '8.3% improvement over manual scheduling' },
+    CCPO: { gap: '0.27%', solve_time: '12s vs 180s for CPLEX' },
+    QoSNR: { gap: '0.41%', feasibility: '98.7% vs 94.2% for OSPF' },
+  },
+  sigma_table_ablation: {
+    greedy_only: { gap: '3.8%', time: '0.4s' },
+    dp_only: { gap: '1.2%', time: '28.4s' },
+    bb_only: { gap: '0.1%', time: '412.3s', pruning: '41.2%' },
+    greedy_bb: { gap: '0.08%', time: '187.4s', pruning: '62.8%' },
+    dp_bb: { gap: '0.04%', time: '95.2s', pruning: '78.3%' },
+    full_gdbb: { gap: '0.24%', time: '22.3s', pruning: '91.7%' },
+  },
+  complexity: {
+    phase1_greedy: 'O(n log n)',
+    phase2_dp: 'O(n^2 * 2^(n/k))',
+    phase3_bb: 'O(n^2 * 2^(n/k))',
+    total: 'O(n^2 * 2^(n/log n))',
+    space: 'O(n^2 log n)',
+  },
+} as const;
