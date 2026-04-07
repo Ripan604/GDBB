@@ -386,17 +386,17 @@ function BlinkingStars({ density }: { density: number }) {
 
   const { geometry, material } = useMemo(() => {
     const random = rng(1103);
-    const count = Math.max(420, Math.floor(density / 120));
+    const count = Math.max(560, Math.floor(density / 96));
     const positions = new Float32Array(count * 3);
     const seeds = new Float32Array(count);
     const sizes = new Float32Array(count);
 
     for (let i = 0; i < count; i += 1) {
       positions[i * 3 + 0] = (random() - 0.5) * 30;
-      positions[i * 3 + 1] = 0.8 + random() * 7.8;
-      positions[i * 3 + 2] = -3.8 - random() * 22;
+      positions[i * 3 + 1] = 0.2 + random() * 8.6;
+      positions[i * 3 + 2] = -1.8 - random() * 18.5;
       seeds[i] = random() * Math.PI * 2;
-      sizes[i] = 1.3 + random() * 1.5;
+      sizes[i] = 1.35 + random() * 1.6;
     }
 
     const g = new THREE.BufferGeometry();
@@ -407,7 +407,10 @@ function BlinkingStars({ density }: { density: number }) {
     const m = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
+      fog: false,
+      toneMapped: false,
       uniforms: {
         uTime: { value: 0 },
       },
@@ -427,7 +430,7 @@ function BlinkingStars({ density }: { density: number }) {
           vAlpha = twinkle;
 
           vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
-          gl_PointSize = (aSize * twinkle) * (96.0 / -mvPosition.z);
+          gl_PointSize = (aSize * twinkle) * (104.0 / -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -439,10 +442,10 @@ function BlinkingStars({ density }: { density: number }) {
         void main() {
           vec2 uv = gl_PointCoord - vec2(0.5);
           float d = dot(uv, uv);
-          float core = smoothstep(0.28, 0.0, d);
+          float core = smoothstep(0.34, 0.0, d);
           if (core < 0.01) discard;
           vec3 color = vec3(0.96, 0.985, 1.0);
-          gl_FragColor = vec4(color, core * vAlpha * 0.74);
+          gl_FragColor = vec4(color, core * vAlpha * 0.56);
         }
       `,
     });
