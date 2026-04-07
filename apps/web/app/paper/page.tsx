@@ -95,7 +95,7 @@ const sections: Section[] = [
     body: [
       'GCOP normalization allows a stable API between frontend demos and backend solvers: bounds, phase updates, sigma snapshots, and completion certificates.',
       'Domain adapters define objective and feasibility semantics while preserving a common solve interface.',
-      'The decomposition factor k controls DP tractability and downstream B&B pruning efficiency.',
+      'The decomposition factor k controls DP tractability and downstream B&B pruning efficiency, so Phase 2 evaluation explicitly measures how k changes pruning rate and runtime.',
     ],
     theoremMath: '\\text{Minimize } f(x),\\ x \\in \\mathcal{X} \\subseteq \\{0,1\\}^n',
     annotations: [
@@ -114,23 +114,26 @@ const sections: Section[] = [
     number: '3',
     title: 'Unified Algorithm',
     summary:
-      'The solver alternates between fast incumbent discovery, lower-bound tightening, and guided exact search.',
+      'The solver alternates between fast incumbent discovery, impact-prioritized lower-bound tightening, and guided exact search with adaptive control.',
     body: [
       'Greedy quickly initializes a high-quality incumbent and upper bound.',
-      'DP computes reusable bound information over decomposed subproblems and writes it into Sigma.',
-      'B&B uses Sigma-informed priorities and epsilon stopping conditions to control search depth.',
+      'DP computes reusable bound information over decomposed subproblems, prioritizing high-impact variables before writing to Sigma.',
+      'B&B uses Sigma-informed priorities, adaptive epsilon tightening, and re-invocable decomposition when pruning stalls in weak regions.',
     ],
     pseudocode: [
-      'Sigma <- init(); UB <- +infinity; LB <- -infinity',
+      'Sigma <- init_lock_free(); UB <- +infinity; LB <- -infinity',
       'x0 <- GreedyConstruct(alpha, beta, gamma)',
       'UB <- cost(x0); Sigma.write(incumbent, UB)',
-      'dp <- RunDPDecomposition(k)',
+      'epsilon_active <- widen(epsilon_target)',
+      'dp <- RunDPDecomposition(k, priority=BoundImpact)',
       'LB <- max(LB, dp.global_lb); Sigma.merge(dp.entries)',
       'while frontier not empty:',
+      '  if pruning_stalls(): frontier <- ReDecompose(frontier, k); Sigma.refresh()',
       '  node <- select_by_sigma(frontier)',
       '  if lower_bound(node) > UB: prune(node); continue',
       '  expand(node); update UB/LB/Sigma',
-      '  if (UB - LB)/UB <= epsilon: break',
+      '  epsilon_active <- tighten(epsilon_target, |Sigma|, memoized_states)',
+      '  if (UB - LB)/UB <= epsilon_active: break',
       'emit complete(UB, LB, gap, solution)',
     ],
     figure: {
@@ -144,7 +147,11 @@ const sections: Section[] = [
       },
       {
         tag: 'Practical Benefit',
-        text: 'Sigma-guided ordering reaches strong pruning ratios earlier in search.',
+        text: 'Sigma-guided ordering reaches strong pruning ratios earlier in search, especially when impact-ranked DP entries are available.',
+      },
+      {
+        tag: 'Concurrency',
+        text: 'The live Sigma snapshot path uses lock-free style copy-on-write updates so shared state remains responsive during streaming.',
       },
     ],
     metrics: [
@@ -259,8 +266,30 @@ const sections: Section[] = [
     ],
   },
   {
-    id: 'references',
+    id: 'extensions',
     number: '7',
+    title: 'Proposed Modifications and Evaluation Plan',
+    summary:
+      'The next iteration focuses on adaptive coordination: refreshing decomposition, reducing synchronization overhead, and measuring the effect of k directly.',
+    body: [
+      'Dynamic decomposition makes the Problem Decomposer re-invocable so stalled B&B regions can be repartitioned into fresher DP subproblems.',
+      'Sigma storage moves to a lock-free style snapshot model to reduce synchronization pressure during concurrent live updates.',
+      'Approximation control becomes adaptive: the run starts with a wider epsilon for fast best-effort progress, then tightens automatically as memoized DP evidence accumulates.',
+      'DP scheduling shifts from uniform coverage to a BoundImpact heuristic so subproblems most likely to improve pruning are solved first.',
+      'Phase 2 evaluation adds a decomposition-factor sensitivity study that plots pruning and runtime against k to identify the practical sweet spot.',
+    ],
+    annotations: [
+      { tag: '1) Dynamic Decomposition', text: 'Repartition the remaining frontier when pruning density drops so the solver can refresh lower bounds instead of pushing through a weak region.' },
+      { tag: '2) Lock-Free Sigma', text: 'Use optimistic compare-and-swap style snapshot replacement so shared Sigma updates avoid a global mutex bottleneck.' },
+      { tag: '3) Adaptive epsilon', text: 'Treat epsilon as a schedule, not a constant: loose at the start for speed, tighter later for certificate quality.' },
+      { tag: '4) DP BoundImpact Priority', text: 'Rank decomposed states by expected downstream pruning value before dispatching DP work.' },
+      { tag: '5) k Sensitivity', text: 'Report how decomposition factor changes pruning rate, execution time, and the point where over-fragmentation starts hurting.' },
+    ],
+    references: ['Unified Algorithm - Section 3', 'Correctness and Approximation - Section 4', 'Benchmark Terminal Phase 2 sensitivity analysis'],
+  },
+  {
+    id: 'references',
+    number: '8',
     title: 'References and Notes',
     summary:
       'This page is now structurally complete as a reader, but exact paragraph-level fidelity requires ingesting your original PDF text.',

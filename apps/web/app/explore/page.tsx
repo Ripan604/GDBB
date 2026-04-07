@@ -4,13 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { BlockMath, InlineMath } from 'react-katex';
 
 const pseudoLines = [
-  'Sigma <- init()',
+  'Sigma <- init_lock_free()',
   'S <- GreedyConstruct(alpha, beta, gamma)',
   'UB <- cost(S)',
-  'LB <- DPTighten(k, Sigma)',
-  'while (UB-LB)/UB > epsilon:',
+  'epsilon_active <- widen(epsilon_target)',
+  'LB <- DPTighten(priority=BoundImpact, k, Sigma)',
+  'while (UB-LB)/UB > epsilon_active:',
+  '  if pruning_stalls(): ReDecompose(frontier, k); RefreshDPBounds(Sigma)',
   '  node <- SelectNodeBySigma()',
   '  Branch(node); PruneByBounds()',
+  '  epsilon_active <- tighten(epsilon_target, memoized_states, |Sigma|)',
   '  Update(UB, LB, Sigma)',
   'return S*',
 ];
@@ -56,6 +59,20 @@ export default function ExplorePage() {
     return { greedy, dp, bb };
   }, [alpha, beta, epsilon, gamma, k]);
 
+  const adaptiveEpsilon = useMemo(() => {
+    const start = Math.min(0.08, epsilon + 0.022 - k * 0.0006);
+    const tightened = start - (k / 12) * 0.012 - gamma * 0.002;
+    return clamp(tightened, epsilon, 0.08);
+  }, [epsilon, gamma, k]);
+
+  const redecompositionPressure = useMemo(() => {
+    const stall = complexityEstimate / 4.8;
+    const tightness = clamp((0.04 - epsilon) / 0.04, 0, 1);
+    return clamp(stall * 0.55 + tightness * 0.45, 0.05, 0.98);
+  }, [complexityEstimate, epsilon]);
+
+  const impactPriority = useMemo(() => clamp((beta * 0.34 + gamma * 0.28 + k / 12 * 0.38) / 1.6, 0.08, 0.99), [beta, gamma, k]);
+
   const complexityLabel = complexityEstimate < 1.2 ? 'fast' : complexityEstimate < 2.8 ? 'balanced' : 'heavy-search';
 
   return (
@@ -64,7 +81,7 @@ export default function ExplorePage() {
         <span className="eyebrow">Algorithm Explorer</span>
         <h1 className="section-title mt-3">Interactive phase laboratory for Greedy, DP, and Sigma-guided B&B.</h1>
         <p className="section-subtitle mt-3">
-          Tune parameters and watch pseudocode, phase load, and complexity estimates react in real-time.
+          Tune parameters and watch adaptive epsilon, impact-prioritized DP, re-decomposition pressure, and phase load react in real-time.
         </p>
       </header>
 
@@ -145,7 +162,7 @@ export default function ExplorePage() {
               </label>
               <label className="block">
                 <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-                  <span>epsilon</span>
+                  <span>target epsilon</span>
                   <span>{epsilon.toFixed(3)}</span>
                 </div>
                 <input className="w-full" type="range" min={0.001} max={0.06} step={0.001} value={epsilon} onChange={(event) => setEpsilon(Number(event.target.value))} />
@@ -170,7 +187,7 @@ export default function ExplorePage() {
             <div className="mt-3 rounded-xl border border-[var(--surface-border)] bg-black/20 p-3">
               <BlockMath math={'T(n) = O(n^2 \\cdot 2^{n/\\log n})'} />
               <p className="text-xs text-[var(--text-secondary)]">
-                Approximate stop check: <InlineMath math={'(UB-LB)/UB \\le \\epsilon'} />
+                Adaptive stop check tightens toward <InlineMath math={'(UB-LB)/UB \\le \\epsilon_{target}'} />
               </p>
             </div>
           </section>
@@ -200,7 +217,24 @@ export default function ExplorePage() {
           </div>
         </article>
       </section>
+
+      <section className="grid gap-4 xl:grid-cols-3">
+        <article className="glass-panel rounded-2xl p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-secondary)]">Adaptive epsilon</p>
+          <p className="mt-1 font-display text-2xl text-dp">{adaptiveEpsilon.toFixed(3)}</p>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">Starts looser for fast progress, then narrows toward your target epsilon.</p>
+        </article>
+        <article className="glass-panel rounded-2xl p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-secondary)]">BoundImpact focus</p>
+          <p className="mt-1 font-display text-2xl text-sigma">{Math.round(impactPriority * 100)}%</p>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">Higher values prioritize DP work on variables likely to improve pruning downstream.</p>
+        </article>
+        <article className="glass-panel rounded-2xl p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-secondary)]">Re-decomposition pressure</p>
+          <p className="mt-1 font-display text-2xl text-bb">{Math.round(redecompositionPressure * 100)}%</p>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">Represents how likely the solver is to refresh subproblems when pruning stalls.</p>
+        </article>
+      </section>
     </section>
   );
 }
-

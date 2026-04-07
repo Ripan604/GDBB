@@ -24,6 +24,12 @@ export type AblationRow = {
   pruning: number;
 };
 
+export type DecompositionSensitivityPoint = {
+  k: number;
+  runtime_s: number;
+  pruning_pct: number;
+};
+
 export function RadarChart({ data }: { data: RadarAxis[] }) {
   const ref = useRef<SVGSVGElement>(null);
 
@@ -243,6 +249,91 @@ export function AblationGroupedBars({ rows }: { rows: AblationRow[] }) {
   return <svg ref={ref} viewBox="0 0 560 280" className="h-[290px] w-full" />;
 }
 
+export function DecompositionSensitivityChart({ points }: { points: DecompositionSensitivityPoint[] }) {
+  const ref = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const width = 560;
+    const height = 300;
+    const margin = { top: 20, right: 56, bottom: 46, left: 56 };
+    const svg = d3.select(ref.current);
+    svg.selectAll('*').remove();
+
+    const x = d3.scaleBand().domain(points.map((point) => String(point.k))).range([margin.left, width - margin.right]).padding(0.24);
+    const yRuntime = d3.scaleLinear().domain([0, d3.max(points, (point) => point.runtime_s) ?? 1]).nice().range([height - margin.bottom, margin.top]);
+    const yPruning = d3.scaleLinear().domain([0, 100]).range([height - margin.bottom, margin.top]);
+
+    svg
+      .append('g')
+      .attr('transform', `translate(0,${height - margin.bottom})`)
+      .call(d3.axisBottom(x))
+      .attr('color', 'rgba(185,204,228,0.9)');
+    svg.append('g').attr('transform', `translate(${margin.left},0)`).call(d3.axisLeft(yRuntime).ticks(5)).attr('color', 'rgba(185,204,228,0.9)');
+    svg.append('g').attr('transform', `translate(${width - margin.right},0)`).call(d3.axisRight(yPruning).ticks(5)).attr('color', 'rgba(185,204,228,0.9)');
+
+    const sweetSpot = points.reduce((best, point) => {
+      const score = point.pruning_pct / Math.max(point.runtime_s, 1);
+      const bestScore = best.pruning_pct / Math.max(best.runtime_s, 1);
+      return score > bestScore ? point : best;
+    }, points[0] ?? { k: 0, runtime_s: 1, pruning_pct: 0 });
+
+    const bandX = x(String(sweetSpot.k));
+    if (bandX != null) {
+      svg
+        .append('rect')
+        .attr('x', bandX - 8)
+        .attr('y', margin.top)
+        .attr('width', x.bandwidth() + 16)
+        .attr('height', height - margin.top - margin.bottom)
+        .attr('fill', 'rgba(76, 228, 177, 0.08)');
+    }
+
+    svg
+      .append('g')
+      .selectAll('rect')
+      .data(points)
+      .enter()
+      .append('rect')
+      .attr('x', (point) => x(String(point.k)) ?? 0)
+      .attr('y', (point) => yRuntime(point.runtime_s))
+      .attr('width', x.bandwidth())
+      .attr('height', (point) => yRuntime(0) - yRuntime(point.runtime_s))
+      .attr('rx', 8)
+      .attr('fill', 'rgba(255, 143, 87, 0.72)');
+
+    const line = d3
+      .line<DecompositionSensitivityPoint>()
+      .x((point) => (x(String(point.k)) ?? 0) + x.bandwidth() / 2)
+      .y((point) => yPruning(point.pruning_pct));
+
+    svg.append('path').datum(points).attr('d', line).attr('fill', 'none').attr('stroke', '#4ce4b1').attr('stroke-width', 3);
+    svg
+      .append('g')
+      .selectAll('circle')
+      .data(points)
+      .enter()
+      .append('circle')
+      .attr('cx', (point) => (x(String(point.k)) ?? 0) + x.bandwidth() / 2)
+      .attr('cy', (point) => yPruning(point.pruning_pct))
+      .attr('r', 4)
+      .attr('fill', '#4ce4b1');
+
+    svg.append('text').attr('x', margin.left).attr('y', 14).attr('fill', '#ffb79a').attr('font-size', 11).text('Runtime (s)');
+    svg.append('text').attr('x', width - margin.right - 64).attr('y', 14).attr('fill', '#8ff1cb').attr('font-size', 11).text('Pruning (%)');
+    svg
+      .append('text')
+      .attr('x', (bandX ?? margin.left) + x.bandwidth() / 2)
+      .attr('y', height - margin.bottom - 10)
+      .attr('text-anchor', 'middle')
+      .attr('fill', '#b8f6df')
+      .attr('font-size', 11)
+      .text(`sweet spot k=${sweetSpot.k}`);
+  }, [points]);
+
+  return <svg ref={ref} viewBox="0 0 560 300" className="h-[300px] w-full" />;
+}
+
 export function PruningFlow({ values }: { values: { total: number; greedy: number; dp: number; explored: number; optimal: number } }) {
   const stages = useMemo(
     () => [
@@ -343,4 +434,3 @@ export function LeaderboardRuntimeStrip({ rows }: { rows: Array<{ nickname: stri
     </div>
   );
 }
-

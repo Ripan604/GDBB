@@ -48,6 +48,7 @@ export const SigmaEntrySchema = z.object({
   lb: z.number(),
   ub: z.number(),
   confidence: z.number().min(0).max(1).default(1),
+  impact: z.number().min(0).max(1).optional(),
 });
 export type SigmaEntry = z.infer<typeof SigmaEntrySchema>;
 

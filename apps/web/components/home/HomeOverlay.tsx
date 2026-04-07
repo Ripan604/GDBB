@@ -306,18 +306,18 @@ export function HomeOverlay({ chapters, activeId, progress, soundOn, setSoundOn 
         <p className="font-display text-4xl font-bold leading-none tracking-[0.08em] text-[var(--text-primary)]">GDBB</p>
         <p className="mt-2">{'// Copyright (c) 2026'}</p>
         <p className="mt-2 leading-relaxed">
-          GDBB Research Platform
+          Optimization Evaluation
           <br />
-          Hybrid Optimization
+          Live Demos and Benchmarks
           <br />
-          Interactive Demonstrator
+          Decision Intelligence
         </p>
       </div>
 
       <div className="absolute right-4 top-24 max-w-[268px] rounded-2xl border border-[var(--surface-border)] bg-[var(--bg-panel)] px-4 py-3 text-right font-mono text-[11px] tracking-[0.08em] text-[var(--text-secondary)]">
         <p className="text-xs tracking-[0.28em]">MANIFESTO</p>
         <p className="mt-2 leading-relaxed">
-          Turn solver internals into visible behavior, so users can understand why optimization works, not just see final numbers.
+          Show how the solver behaves, where the gains come from, and what tradeoffs matter so results are easier to evaluate and trust.
         </p>
       </div>
 

@@ -6,6 +6,7 @@ import { GDBB_STATS } from '@/lib/gdbb-stats';
 import { HomeOverlay } from '@/components/home/HomeOverlay';
 import { useHomeScrollState } from '@/components/home/useHomeScrollState';
 import type { HomeChapter } from '@/components/home/types';
+import { useUiStore } from '@/lib/store';
 
 const HOME_INITIAL_LOOP_COUNT = 6;
 const HOME_MAX_LOOP_COUNT = 250;
@@ -16,13 +17,13 @@ const CHAPTERS: HomeChapter[] = [
     id: 'topic-home',
     label: 'Home',
     code: 'PORTFOLIO_CO_00',
-    title: 'A cinematic research platform for hybrid combinatorial optimization.',
+    title: 'Evaluate hybrid optimization in one interactive workspace.',
     summary:
-      'Scroll through repeating chapters, open any module instantly, and keep the igloo scene running continuously in the background.',
+      'Explore live solver demos, benchmark evidence, and explainable decision flows in one place so teams can understand performance, tradeoffs, and where the approach fits.',
     facts: [
+      'Live solver demos',
       `${GDBB_STATS.benchmark_instances} benchmark instances`,
-      `${GDBB_STATS.avg_optimality_gap} average gap`,
-      `${GDBB_STATS.nodes_pruned} nodes pruned`,
+      'Explainable decision flow',
     ],
     route: '/',
   },
@@ -158,13 +159,13 @@ function ChapterSection({
   intro = false,
   loopIndex,
   anchorLoopIndex,
-  onJump,
+  onCopyLink,
 }: {
   chapter: HomeChapter;
   intro?: boolean;
   loopIndex: number;
   anchorLoopIndex: number;
-  onJump: (chapterId: string) => void;
+  onCopyLink: (chapter: HomeChapter) => Promise<void> | void;
 }) {
   const sectionId = loopIndex === anchorLoopIndex ? chapter.id : undefined;
 
@@ -197,8 +198,8 @@ function ChapterSection({
           <Link href={chapter.route} className="primary-btn">
             Open {chapter.label}
           </Link>
-          <button type="button" onClick={() => onJump(chapter.id)} className="ghost-btn">
-            Jump Link
+          <button type="button" onClick={() => void onCopyLink(chapter)} className="ghost-btn">
+            Copy Link
           </button>
         </div>
       </article>
@@ -210,6 +211,7 @@ export default function HomePage() {
   const [loopCount, setLoopCount] = useState(HOME_INITIAL_LOOP_COUNT);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const { activeId, progress, soundOn, setSoundOn } = useHomeScrollState(CHAPTERS);
+  const addToast = useUiStore((state) => state.addToast);
 
   const handleChapterJump = useCallback((chapterId: string) => {
     const sections = Array.from(document.querySelectorAll<HTMLElement>(`[data-chapter-id="${chapterId}"]`));
@@ -229,6 +231,44 @@ export default function HomePage() {
 
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
+
+  const handleCopyChapterLink = useCallback(
+    async (chapter: HomeChapter) => {
+      if (typeof window === 'undefined') return;
+
+      const destination = chapter.route === '/' ? `/#${chapter.id}` : chapter.route;
+      const absoluteUrl = new URL(destination, window.location.origin).toString();
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(absoluteUrl);
+        } else {
+          const tempInput = document.createElement('textarea');
+          tempInput.value = absoluteUrl;
+          tempInput.style.position = 'fixed';
+          tempInput.style.opacity = '0';
+          document.body.appendChild(tempInput);
+          tempInput.focus();
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+        }
+
+        addToast({
+          title: `${chapter.label} link copied`,
+          description: absoluteUrl,
+          tone: 'success',
+        });
+      } catch {
+        addToast({
+          title: 'Copy failed',
+          description: 'Could not copy the chapter link. Please copy from the browser address bar.',
+          tone: 'error',
+        });
+      }
+    },
+    [addToast],
+  );
 
   useEffect(() => {
     const node = loadMoreRef.current;
@@ -261,7 +301,7 @@ export default function HomePage() {
                 intro={index === 0}
                 loopIndex={loopIndex}
                 anchorLoopIndex={HOME_ANCHOR_LOOP_INDEX}
-                onJump={handleChapterJump}
+                onCopyLink={handleCopyChapterLink}
               />
             ))}
           </div>

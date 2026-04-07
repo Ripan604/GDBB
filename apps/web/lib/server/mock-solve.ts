@@ -30,6 +30,7 @@ export function createMockSolveStream(domain: ProblemType, epsilon = 0.01): Read
         let ub = 860;
         let lb = 700;
         let pruned = 0;
+        let adaptiveEpsilon = Math.min(0.08, Math.max(epsilon, epsilon * 2.4));
 
         const phaseOrder: Array<'GREEDY' | 'DP' | 'BB'> = ['GREEDY', 'DP', 'BB'];
 
@@ -48,8 +49,9 @@ export function createMockSolveStream(domain: ProblemType, epsilon = 0.01): Read
 
           for (const progress of [0.2, 0.45, 0.7, 1]) {
             ub *= phase === 'GREEDY' ? 0.994 : phase === 'DP' ? 0.996 : 0.997;
-            lb = Math.min(ub * (1 - epsilon * 0.45), lb + (ub - lb) * (phase === 'GREEDY' ? 0.14 : 0.25));
+            lb = Math.min(ub * (1 - adaptiveEpsilon * 0.45), lb + (ub - lb) * (phase === 'GREEDY' ? 0.14 : 0.25));
             if (phase === 'BB') pruned += 18;
+            if (phase !== 'GREEDY') adaptiveEpsilon = Math.max(epsilon, adaptiveEpsilon - 0.0025);
 
             const bounds = { ub, lb, gap: Math.max(0, (ub - lb) / ub) };
 
@@ -73,9 +75,9 @@ export function createMockSolveStream(domain: ProblemType, epsilon = 0.01): Read
                     ...eventBase(jobId, domain),
                     type: 'sigma_snapshot',
                     entries: [
-                      { key: 'region_0', lb: lb * 0.32, ub: ub * 0.35, confidence: 0.91 },
-                      { key: 'region_1', lb: lb * 0.28, ub: ub * 0.31, confidence: 0.87 },
-                      { key: 'region_2', lb: lb * 0.24, ub: ub * 0.27, confidence: 0.9 },
+                      { key: 'region_0', lb: lb * 0.32, ub: ub * 0.35, confidence: 0.91, impact: 0.92 },
+                      { key: 'region_1', lb: lb * 0.28, ub: ub * 0.31, confidence: 0.87, impact: 0.74 },
+                      { key: 'region_2', lb: lb * 0.24, ub: ub * 0.27, confidence: 0.9, impact: 0.63 },
                     ],
                   }),
                 ),
@@ -92,7 +94,12 @@ export function createMockSolveStream(domain: ProblemType, epsilon = 0.01): Read
                 type: 'phase_complete',
                 phase,
                 bounds: { ub, lb, gap: Math.max(0, (ub - lb) / ub) },
-                metrics: { mock_mode: 1, pruned_nodes: pruned },
+                metrics:
+                  phase === 'DP'
+                    ? { mock_mode: 1, sigma_store_lock_free: 1, top_bound_impact: 0.92, decomposition_rounds: 1 }
+                    : phase === 'BB'
+                      ? { mock_mode: 1, pruned_nodes: pruned, adaptive_epsilon: adaptiveEpsilon, target_epsilon: epsilon, repartitions: 1, decomposition_rounds: 2 }
+                      : { mock_mode: 1, pruned_nodes: pruned },
               }),
             ),
           );

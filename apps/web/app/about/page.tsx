@@ -23,7 +23,7 @@ const stackRows = [
 
 const roadmap = [
   'MVP: full CVRP stream, theorem workbook, benchmark suite, chat assistant.',
-  'Phase 2: real scheduling/portfolio/routing solvers replacing mocks.',
+  'Phase 2: real scheduling/portfolio/routing solvers replacing mocks, plus adaptive epsilon, dynamic decomposition, and k-sensitivity evaluation.',
   'Phase 3: PDF-fidelity paper ingestion and validated benchmark replay pipeline.',
   'Phase 4: collaborative runs, authenticated workspaces, and reproducibility packs.',
 ];
@@ -89,4 +89,3 @@ export default function AboutPage() {
     </section>
   );
 }
-

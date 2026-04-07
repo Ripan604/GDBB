@@ -9,6 +9,14 @@ import { useSSE } from '@/lib/hooks/useSSE';
 type DemoNode = { id: string; x: number; y: number; demand: number };
 type BoundsState = { ub: number; lb: number; gap: number };
 type PhaseState = 'GREEDY' | 'DP' | 'BB' | 'IDLE';
+type RunInsights = {
+  adaptiveEpsilon: number;
+  targetEpsilon: number;
+  decompositionRounds: number;
+  repartitions: number;
+  topBoundImpact: number;
+  sigmaStoreLockFree: boolean;
+};
 
 const MAP_W = 680;
 const MAP_H = 430;
@@ -46,9 +54,25 @@ function toScreen(node: { x: number; y: number }) {
 function formatEvent(event: SolveEvent) {
   if (event.type === 'phase_start') return `${event.phase} started`;
   if (event.type === 'phase_progress') return `${event.phase} ${Math.round(event.progress * 100)}%`;
-  if (event.type === 'phase_complete') return `${event.phase} complete`;
+  if (event.type === 'phase_complete') {
+    if (event.phase === 'DP') {
+      const focus = event.metrics.top_bound_impact;
+      return focus ? `DP complete | top impact ${focus.toFixed(2)}` : 'DP complete';
+    }
+    if (event.phase === 'BB') {
+      const active = event.metrics.adaptive_epsilon;
+      const repartitions = event.metrics.repartitions;
+      if (typeof active === 'number' && typeof repartitions === 'number') {
+        return `BB complete | eps ${active.toFixed(3)} | repartitions ${Math.round(repartitions)}`;
+      }
+    }
+    return `${event.phase} complete`;
+  }
   if (event.type === 'node_pruned') return `Pruned ${event.node_id}`;
-  if (event.type === 'sigma_snapshot') return `Sigma snapshot (${event.entries.length})`;
+  if (event.type === 'sigma_snapshot') {
+    const topImpact = event.entries[0]?.impact;
+    return topImpact == null ? `Sigma snapshot (${event.entries.length})` : `Sigma snapshot (${event.entries.length}) | impact ${topImpact.toFixed(2)}`;
+  }
   if (event.type === 'complete') return 'Solve complete';
   return event.error;
 }
@@ -90,6 +114,14 @@ function extractState(events: SolveEvent[]) {
   let sigma: SigmaEntry[] = [];
   let prunedCount = 0;
   let complete = false;
+  let insights: RunInsights = {
+    adaptiveEpsilon: 0,
+    targetEpsilon: 0,
+    decompositionRounds: 1,
+    repartitions: 0,
+    topBoundImpact: 0,
+    sigmaStoreLockFree: false,
+  };
 
   for (const event of events) {
     if (event.type === 'phase_start' || event.type === 'phase_progress' || event.type === 'phase_complete') {
@@ -98,11 +130,27 @@ function extractState(events: SolveEvent[]) {
     const nextBounds = asBounds(event);
     if (nextBounds) bounds = nextBounds;
     if (event.type === 'node_pruned') prunedCount = event.pruned_count;
-    if (event.type === 'sigma_snapshot') sigma = event.entries;
+    if (event.type === 'sigma_snapshot') {
+      sigma = event.entries;
+      insights.topBoundImpact = event.entries[0]?.impact ?? insights.topBoundImpact;
+    }
+    if (event.type === 'phase_complete') {
+      if (event.phase === 'DP') {
+        insights.topBoundImpact = event.metrics.top_bound_impact ?? insights.topBoundImpact;
+        insights.decompositionRounds = Math.max(insights.decompositionRounds, Math.round(event.metrics.decomposition_rounds ?? insights.decompositionRounds));
+        insights.sigmaStoreLockFree = insights.sigmaStoreLockFree || (event.metrics.sigma_store_lock_free ?? 0) > 0.5;
+      }
+      if (event.phase === 'BB') {
+        insights.adaptiveEpsilon = event.metrics.adaptive_epsilon ?? insights.adaptiveEpsilon;
+        insights.targetEpsilon = event.metrics.target_epsilon ?? insights.targetEpsilon;
+        insights.repartitions = Math.round(event.metrics.repartitions ?? insights.repartitions);
+        insights.decompositionRounds = Math.max(insights.decompositionRounds, Math.round(event.metrics.decomposition_rounds ?? insights.decompositionRounds));
+      }
+    }
     if (event.type === 'complete') complete = true;
   }
 
-  return { phase, bounds, sigma, prunedCount, complete };
+  return { phase, bounds, sigma, prunedCount, complete, insights };
 }
 
 function buildRoutePath(ids: string[], nodesById: Map<string, DemoNode>) {
@@ -346,11 +394,23 @@ export default function VrpDemoPage() {
           <VrpOperationalMap nodes={nodes} routes={routePlan.routes} activePhase={state.phase} running={running} source={routePlan.source} onAddNode={addNode} />
           <PhaseIndicator phase={state.phase} />
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <StatCard label="Upper Bound (UB)" value={state.bounds.ub.toFixed(2)} tone="text-neural" helper="Current best feasible objective." />
             <StatCard label="Lower Bound (LB)" value={state.bounds.lb.toFixed(2)} tone="text-dp" helper="Provable floor from DP/B&B." />
             <StatCard label="Relative Gap" value={`${(state.bounds.gap * 100).toFixed(2)}%`} tone="text-bb" helper="Termination metric: (UB-LB)/UB." />
             <StatCard label="Nodes Pruned" value={String(state.prunedCount)} tone="text-sigma" helper="B&B states removed using bounds." />
+            <StatCard
+              label="Adaptive epsilon"
+              value={(state.insights.adaptiveEpsilon || epsilon).toFixed(3)}
+              tone="text-dp"
+              helper={`Tightens automatically toward target ${((state.insights.targetEpsilon || epsilon)).toFixed(3)}.`}
+            />
+            <StatCard
+              label="Decomposition rounds"
+              value={String(state.insights.decompositionRounds)}
+              tone="text-sigma"
+              helper={`Dynamic repartitions triggered: ${state.insights.repartitions}`}
+            />
           </div>
 
           <div className="glass-panel rounded-2xl p-4">
@@ -429,7 +489,7 @@ export default function VrpDemoPage() {
 
             <label className="mb-3 block">
               <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-                <span>Epsilon</span>
+                <span>Target epsilon</span>
                 <span>{epsilon.toFixed(3)}</span>
               </div>
               <input
@@ -486,6 +546,24 @@ export default function VrpDemoPage() {
           <SigmaTableLive entries={state.sigma} />
 
           <section className="glass-panel rounded-2xl p-4 text-sm">
+            <h3 className="mb-2 font-display text-xl">Current Hybrid Strategy</h3>
+            <ul className="space-y-2 text-[var(--text-secondary)]">
+              <li>
+                <span className="font-semibold text-[var(--text-primary)]">DP priority:</span> subproblems are ordered by BoundImpact, currently peaking at{' '}
+                {state.insights.topBoundImpact.toFixed(2)}.
+              </li>
+              <li>
+                <span className="font-semibold text-[var(--text-primary)]">Dynamic decomposition:</span> the solver can repartition stalled search regions. Current rounds:{' '}
+                {state.insights.decompositionRounds} with {state.insights.repartitions} refresh events.
+              </li>
+              <li>
+                <span className="font-semibold text-[var(--text-primary)]">Sigma store:</span> {state.insights.sigmaStoreLockFree ? 'lock-free snapshot mode is active' : 'snapshot mode pending'} with
+                optimistic copy-on-write updates instead of a global request lock.
+              </li>
+            </ul>
+          </section>
+
+          <section className="glass-panel rounded-2xl p-4 text-sm">
             <h3 className="mb-2 font-display text-xl">What This Demo Is Showing</h3>
             <ul className="space-y-2 text-[var(--text-secondary)]">
               <li>
@@ -495,10 +573,13 @@ export default function VrpDemoPage() {
                 <span className="font-semibold text-[var(--text-primary)]">Capacity:</span> max load per truck. Capacity violations force route splitting and increase cost.
               </li>
               <li>
-                <span className="font-semibold text-[var(--text-primary)]">Epsilon:</span> acceptable optimality tolerance. Smaller epsilon means deeper search and slower but tighter solutions.
+                <span className="font-semibold text-[var(--text-primary)]">Target epsilon:</span> desired final tolerance. The live run starts looser for fast progress, then tightens as Sigma fills in.
               </li>
               <li>
-                <span className="font-semibold text-[var(--text-primary)]">Sigma Table:</span> per-subproblem bounds used to prioritize and prune branch-and-bound nodes.
+                <span className="font-semibold text-[var(--text-primary)]">Dynamic decomposition:</span> if pruning slows down, the remaining search is repartitioned to refresh DP bounds.
+              </li>
+              <li>
+                <span className="font-semibold text-[var(--text-primary)]">Sigma Table:</span> impact-ranked subproblem bounds drive DP order and B&B pruning priority.
               </li>
             </ul>
             <p className="mt-3 rounded-lg border border-[var(--surface-border)] bg-[var(--surface-muted)] p-2 text-xs text-[var(--text-secondary)]">
@@ -518,4 +599,3 @@ export default function VrpDemoPage() {
     </section>
   );
 }
-

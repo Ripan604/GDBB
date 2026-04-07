@@ -51,4 +51,5 @@ class SigmaEntry(BaseModel):
     lb: float
     ub: float
     confidence: float = 1.0
+    impact: float | None = Field(default=None, ge=0, le=1)
 

@@ -19,7 +19,17 @@ def test_cvrp_stream_starts():
 
     with client.stream('POST', '/solve/cvrp', json=payload) as response:
         assert response.status_code == 200
-        chunk = next(response.iter_text())
-        assert 'event:' in chunk
-        assert 'phase_start' in chunk
+        chunks = []
+        for idx, chunk in enumerate(response.iter_text()):
+            chunks.append(chunk)
+            joined = ''.join(chunks)
+            if 'event: complete' in joined or idx >= 24:
+                break
+
+        joined = ''.join(chunks)
+        assert 'event:' in joined
+        assert 'phase_start' in joined
+        assert 'sigma_snapshot' in joined
+        assert '"impact"' in joined
+        assert '"adaptive_epsilon"' in joined
 
